@@ -135,7 +135,7 @@ if not df.empty:
     st.dataframe(df)
 
     # Calcular IVA
-    st.subheader("💰 Resumen de Costos")
+    st.subheader("💰 Resumen del presupuesto")
     total_cost = df["Costo Total (€)"].sum()
     iva_amount = total_cost * (iva_percentage / 100)
     final_cost = total_cost + iva_amount
