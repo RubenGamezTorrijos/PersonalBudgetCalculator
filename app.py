@@ -1,18 +1,31 @@
-# Mejor Versión de Presupuesto
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
 import json
-import io  # Asegurar que io está importado
 from io import BytesIO
 from fpdf import FPDF
 
-
+# Título en la sección principal
 st.title("📊 Calculadora de Presupuesto de Reforma 🏠")
 
-# Lista de unidades de medida
-unit_types = ["Metros (m)", "Cantidad (Und.)", "Pieza (Pz)", "Peso (Kg)"]
+# Menú lateral para configuraciones
+with st.sidebar:
+    st.header("Configuraciones")
+
+    # Lista de unidades de medida
+    unit_types = ["Metros (m)", "Cantidad (Und.)", "Pieza (Pz)", "Peso (Kg)"]
+    iva_percentage = st.slider("IVA (%)", 0, 21, 21)
+
+    # Mostrar el slider de IVA en el menú lateral
+    st.markdown("### Opciones de IVA")
+    st.write(f"IVA seleccionado: {iva_percentage}%")
+
+    # Cargar presupuesto desde archivo JSON en el menú lateral
+    st.subheader("📂 Cargar presupuesto guardado")
+    uploaded_file = st.file_uploader("Sube un archivo JSON", type=["json"])
+    
+    if uploaded_file:
+        load_budget(uploaded_file)
 
 # Inicializar session_state si no existe
 if "data" not in st.session_state:
@@ -44,7 +57,7 @@ def add_entry(room, category, subcategory, product, unit_type, units, unit_price
     st.session_state.data.append(new_entry)
     st.session_state.history.append(st.session_state.data.copy())  # Guardar historial de cambios
 
-# Cargar presupuesto desde JSON
+# Función para cargar presupuesto desde archivo JSON
 def load_budget(file):
     content = json.load(file)
     st.session_state.data = content
@@ -96,11 +109,7 @@ def generate_pdf():
 
     return output  # Retornamos el buffer con el archivo PDF
 
-# Para usar el PDF en streamlit
-pdf_buffer = generate_pdf()  # Llamamos a la función para generar el PDF
-st.download_button("Descargar PDF", pdf_buffer, "presupuesto.pdf", "application/pdf")
-
-# Formulario de entrada
+# Formulario de entrada en el contenido principal
 with st.form("budget_form"):
     col1, col2, col3 = st.columns(3)
     with col1:
@@ -119,7 +128,7 @@ with st.form("budget_form"):
         add_entry(room, category, subcategory, product, unit_type, units, unit_price)
         st.success("Añadido correctamente")
 
-# Mostrar tabla si hay datos
+# Mostrar tabla y gráficos en el contenido principal
 df = pd.DataFrame(st.session_state.data)
 if not df.empty:
     st.subheader("📊 Presupuesto detallado")
@@ -128,7 +137,6 @@ if not df.empty:
     # Calcular IVA
     st.subheader("💰 Resumen de Costos")
     total_cost = df["Costo Total (€)"].sum()
-    iva_percentage = st.slider("IVA (%)", 0, 21, 21)
     iva_amount = total_cost * (iva_percentage / 100)
     final_cost = total_cost + iva_amount
 
@@ -177,8 +185,4 @@ if not df.empty:
         st.session_state.data = []
         st.rerun()
 
-# Cargar presupuesto desde archivo JSON
-st.subheader("📂 Cargar presupuesto guardado")
-uploaded_file = st.file_uploader("Sube un archivo JSON", type=["json"])
-if uploaded_file:
-    load_budget(uploaded_file)
+
