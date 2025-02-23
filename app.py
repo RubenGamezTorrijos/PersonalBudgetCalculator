@@ -6,7 +6,7 @@ from io import BytesIO
 from fpdf import FPDF
 
 # Título en la sección principal
-st.title("📊 Calculadora de Presupuesto de Reforma 🏠")
+st.title("📊 Calculadora de Presupuestos Personal 🏠")
 
 # Menú lateral para configuraciones
 with st.sidebar:
