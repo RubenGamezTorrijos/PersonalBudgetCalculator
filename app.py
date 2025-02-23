@@ -1,3 +1,5 @@
+# Mejor Versión de Presupuesto
+
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -5,6 +7,7 @@ import json
 import io  # Asegurar que io está importado
 from io import BytesIO
 from fpdf import FPDF
+
 
 st.title("📊 Calculadora de Presupuesto de Reforma 🏠")
 
@@ -45,7 +48,7 @@ def add_entry(room, category, subcategory, product, unit_type, units, unit_price
 def load_budget(file):
     content = json.load(file)
     st.session_state.data = content
-    # Asegurar que todas las entradas tengan la columna 'Costo Total (€)'
+    # Asegurarnos de que todas las entradas tengan la columna 'Costo Total (€)'
     for entry in st.session_state.data:
         if "Costo Total (€)" not in entry:
             entry["Costo Total (€)"] = entry["Precio Unitario (€)"] * entry["Unidades"]
@@ -63,18 +66,20 @@ def export_to_excel():
         df.to_excel(writer, index=False, sheet_name="Presupuesto")
     return output.getvalue()
 
-# Generar PDF
+# Crear PDF con fuente TrueType
 def generate_pdf():
     pdf = FPDF()
     pdf.set_auto_page_break(auto=True, margin=15)
     pdf.add_page()
 
-    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)  # Añadir fuente TrueType
+    # Usar una fuente TrueType (DejaVuSans) que soporta caracteres Unicode como el euro
+    pdf.add_font('DejaVu', '', 'DejaVuSans.ttf', uni=True)  # Añadimos la fuente TrueType
     pdf.set_font('DejaVu', '', 12)
 
     pdf.cell(200, 10, "Presupuesto de Reforma", ln=True, align="C")
     pdf.ln(10)
 
+    pdf.set_font("DejaVu", "", 12)
     df = pd.DataFrame(st.session_state.data)
 
     for _, row in df.iterrows():
@@ -83,12 +88,17 @@ def generate_pdf():
         pdf.cell(200, 10, f"Precio Unitario: {row['Precio Unitario (€)']} € - Total: {row['Costo Total (€)']} €", ln=True)
         pdf.ln(5)
 
+    # Guardamos el PDF en un buffer de memoria
     output = BytesIO()
-    pdf_output = pdf.output(dest='S').encode('latin1')
-    output.write(pdf_output)
-    output.seek(0)
+    pdf_output = pdf.output(dest='S').encode('latin1')  # Generamos el PDF como bytes
+    output.write(pdf_output)  # Escribimos en el buffer
+    output.seek(0)  # Nos aseguramos de que el buffer esté listo para leer
 
-    return output
+    return output  # Retornamos el buffer con el archivo PDF
+
+# Para usar el PDF en streamlit
+pdf_buffer = generate_pdf()  # Llamamos a la función para generar el PDF
+st.download_button("Descargar PDF", pdf_buffer, "presupuesto.pdf", "application/pdf")
 
 # Formulario de entrada
 with st.form("budget_form"):
@@ -109,23 +119,13 @@ with st.form("budget_form"):
         add_entry(room, category, subcategory, product, unit_type, units, unit_price)
         st.success("Añadido correctamente")
 
-# Mostrar presupuesto detallado si hay datos
-if st.session_state.data:
+# Mostrar tabla si hay datos
+df = pd.DataFrame(st.session_state.data)
+if not df.empty:
     st.subheader("📊 Presupuesto detallado")
-    
-    df = pd.DataFrame(st.session_state.data)
-
-    for index, row in df.iterrows():
-        col1, col2 = st.columns([6, 1])
-        col1.write(f"📌 {row['Producto']} ({row['Unidades']} {row['Tipo de Unidad']}) - {row['Costo Total (€)']} €")
-        if col2.button("❌", key=f"delete_{index}"):
-            st.session_state.data.pop(index)
-            st.rerun()  # Recargar la interfaz
-
-    # Mostrar tabla completa
     st.dataframe(df)
 
-    # Resumen de costos
+    # Calcular IVA
     st.subheader("💰 Resumen de Costos")
     total_cost = df["Costo Total (€)"].sum()
     iva_percentage = st.slider("IVA (%)", 0, 21, 21)
@@ -138,24 +138,46 @@ if st.session_state.data:
 
     # Gráficos de distribución
     st.subheader("📊 Distribución del presupuesto")
+    
+    # Gráfico por Categorías
     fig1 = px.pie(df, names="Categoría", values="Costo Total (€)", title="Gasto por Categoría")
     st.plotly_chart(fig1)
-
+    
+    # Gráfico por Subcategorías
     if "Subcategoría" in df.columns:
         fig2 = px.pie(df, names="Subcategoría", values="Costo Total (€)", title="Gasto por Subcategoría")
         st.plotly_chart(fig2)
 
-    # Descarga de archivos
-    st.download_button("📥 Descargar Excel", data=export_to_excel(), file_name="presupuesto.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    st.download_button("💾 Guardar Presupuesto", data=save_budget(), file_name="presupuesto.json", mime="application/json")
-    st.download_button("📄 Generar Informe PDF", data=generate_pdf(), file_name="presupuesto.pdf", mime="application/pdf")
+    # Botón para descargar Excel
+    st.download_button(
+        label="📥 Descargar Excel",
+        data=export_to_excel(),
+        file_name="presupuesto_reforma.xlsx",
+        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
-    # Botón para borrar todo el presupuesto
+    # Botón para guardar el presupuesto en JSON
+    st.download_button(
+        label="💾 Guardar Presupuesto",
+        data=save_budget(),
+        file_name="presupuesto.json",
+        mime="application/json"
+    )
+
+    # Botón para descargar informe en PDF
+    st.download_button(
+        label="📄 Generar Informe PDF",
+        data=generate_pdf(),
+        file_name="presupuesto_reforma.pdf",
+        mime="application/pdf"
+    )
+
+    # Botón para borrar datos
     if st.button("🗑️ Borrar todo el presupuesto"):
         st.session_state.data = []
         st.rerun()
 
-# Cargar presupuesto desde JSON
+# Cargar presupuesto desde archivo JSON
 st.subheader("📂 Cargar presupuesto guardado")
 uploaded_file = st.file_uploader("Sube un archivo JSON", type=["json"])
 if uploaded_file:
